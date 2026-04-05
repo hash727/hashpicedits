@@ -80,12 +80,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       // 3. Persist the 'plan' from DB to JWT
       if (user) {
         token.id = user.id;
         token.plan = user.plan || "FREE";
       }
+
+      // 2. 🆕 ADD THIS: Refetch user data on "update" trigger
+      if (trigger === "update") {
+        // Fetch fresh data from database
+        const freshUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+        });
+
+        // Update the token with the new plan
+        if (freshUser) {
+          token.plan = freshUser.plan;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
