@@ -41,6 +41,17 @@ export async function POST(req: Request) {
 
       console.log("💳 Subscription retrieved:", subscription.id);
 
+      // 1. Safe Date Calculation
+      // If Stripe data is missing, fallback to 30 days from now to prevent crash
+      const periodEnd = subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // Fallback: +30 days
+
+      // 2. Debug Log (Check this in Vercel logs)
+      console.log(
+        `📅 Period End: ${periodEnd.toISOString()} (Raw: ${subscription.current_period_end})`,
+      );
+
       const user = await prisma.user.update({
         where: { id: userId },
         data: {
@@ -48,9 +59,7 @@ export async function POST(req: Request) {
           stripeSubscriptionId: subscription.id,
           stripeId: subscription.customer as string,
           stripePriceId: subscription.items.data[0].price.id,
-          stripeCurrentPeriodEnd: new Date(
-            subscription.current_period_end * 1000,
-          ),
+          stripeCurrentPeriodEnd: periodEnd,
         },
       });
 
