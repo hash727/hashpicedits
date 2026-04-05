@@ -25,6 +25,15 @@ export async function POST(req: Request) {
     // Type: Session
     const session = event.data.object as Stripe.Checkout.Session;
 
+    // 🛑 SAFETY CHECK: Ensure this is actually a subscription
+    if (!session.subscription) {
+      console.warn(
+        `⚠️ Checkout Session ${session.id} is missing a Subscription ID. Mode was: ${session.mode}`,
+      );
+      // Return 200 to tell Stripe "We received it, but we don't need to do anything."
+      return new NextResponse(null, { status: 200 });
+    }
+
     try {
       console.log("👉 Starting Checkout Logic for Session:", session.id);
 
