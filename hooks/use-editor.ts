@@ -214,47 +214,54 @@ export const useEditor = (canvas: fabric.Canvas | null) => {
   // };
   // window.addEventListener("keydown", handleKey)
 
-  const setBrush = (options: {
+  const setBrush = ({
+    type,
+    color,
+    width,
+  }: {
+    type: string;
     color?: string;
-    width?: number;
-    type?: "pencil" | "eraser";
+    width: number;
   }) => {
-    // const _c = canvas as any
-    if (!canvas || !canvas.isDrawingMode) return;
+    if (!canvas) return;
 
-    Object.assign(canvas, { isDrawingMode: true });
+    // 1. FORCE DRAWING MODE ON
+    // Do not check if it's on; just turn it on.
+    canvas.isDrawingMode = true;
 
-    if (options.type === "eraser") {
-      // Professional Eraser: Uses the canvas background color to "hide" paths
-      // 1. Create a special PencilBrush for Erasing
-      const eraserBrush = new fabric.PencilBrush(canvas);
-      eraserBrush.width = options.width || 10;
+    // 2. SAFE ACCESS TO ERASER (Bypass TS types)
+    const fabricAny = fabric as any;
+    const EraserBrush = fabricAny.EraserBrush;
 
-      // 2. THE SECRET: destination-out makes the stroke "invisible" and cuts through
-      // Note: This requires the canvas to have a transparent background or specific setup
-      // Alternatively, use the background color for a simpler "Canva" feel:
-      // eraserBrush.color = (canva.backgroundColor as string) || "#ffffff";
-      const bgColor = (canvas.backgroundColor as string) || "#ffffff";
-      eraserBrush.color = bgColor;
-
-      // Assign the brush
-      Object.assign(canvas, { freeDrawingBrush: eraserBrush });
-
-      // canvas.freeDrawingBrush = eraserBrush;
-    } else if (options.type === "pencil") {
-      // Standard Pencil
-      const pencilBrush = new fabric.PencilBrush(canvas);
-      pencilBrush.color = options.color || "#000000";
-      pencilBrush.width = options.width || 5;
-
-      // Assign the brush to the pointer
-      Object.assign(canvas, { freeDrawingBrush: pencilBrush });
+    // --- PENCIL ---
+    if (type === "pencil") {
+      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+      canvas.freeDrawingBrush.color = color || "#000000";
+      canvas.freeDrawingBrush.width = width;
     }
 
-    if (options.width) {
-      const pencilWidth = new fabric.PencilBrush(canvas);
-      pencilWidth.width = options.width;
-      Object.assign(canvas, { freeDrawingBrush: pencilWidth });
+    // --- SPRAY ---
+    else if (type === "brush") {
+      const SprayBrush = (fabric as any).SprayBrush;
+
+      canvas.freeDrawingBrush = new SprayBrush(canvas);
+      canvas.freeDrawingBrush.color = color || "#000000";
+      canvas.freeDrawingBrush.width = width;
+    }
+
+    // --- ERASER ---
+    else if (type === "eraser") {
+      if (EraserBrush) {
+        // Native Eraser (True Transparency)
+        canvas.freeDrawingBrush = new EraserBrush(canvas);
+        canvas.freeDrawingBrush.width = width;
+      } else {
+        // Fallback (White Paint)
+        console.warn("EraserBrush not found. Using Whiteout fallback.");
+        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+        canvas.freeDrawingBrush.color = "#ffffff";
+        canvas.freeDrawingBrush.width = width;
+      }
     }
   };
 

@@ -1,7 +1,7 @@
 // app/actions/auth-actions.ts
 "use server";
 
-import { signIn } from "@/auth";
+import { auth, signIn, signOut } from "@/auth";
 
 export async function loginWithSocial(
   provider: "google" | "twitter" | "facebook",
@@ -19,4 +19,15 @@ export async function loginWithCredentials(formData: FormData) {
     }
     return { error: "Invalid credentials" };
   }
+}
+
+export async function handleSignOut() {
+  const session = await auth();
+  if (!session?.user) return;
+  try {
+    await signOut();
+  } catch (error) {
+    throw error;
+  }
+  // return { success: true, message: "Signed Out Successfully!" };
 }

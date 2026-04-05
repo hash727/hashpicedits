@@ -19,25 +19,45 @@ export async function createProject(formData: FormData) {
   // Define default dimensions (e.g., Instagram Post)
   const width = 1080;
   const height = 1080;
+  let projectId: string;
 
-  const project = await prisma.project.create({
-    data: {
-      name: "Untitled Design",
-      width,
-      height,
-      userId: session.user.id,
-      // Store the initial Fabric.js JSON state
-      // Keep the initial JSON small to avoid slow uploads
-      json: { version: "5.3.0", ojcects: [], background: "#ffffff" },
-      // json: getInitialCanvasJson(width, height) as any,
-      isPro: false, // Default to free
-    },
-    // Only select the ID to return faster
-    select: { id: true },
-  });
+  try {
+    const project = await prisma.project.create({
+      data: {
+        name: "Untitled Design",
+        width,
+        height,
+        userId: session.user.id,
+        // Store the initial Fabric.js JSON state
+        // Keep the initial JSON small to avoid slow uploads
+        json: {
+          version: "5.3.0",
+          objects: [],
+          background: "#ffffff",
+        },
+        // json: getInitialCanvasJson(width, height) as any,
+        isPro: false, // Default to free
+      },
+      // Only select the ID to return faster
+      select: { id: true },
+    });
+
+    projectId = project.id;
+  } catch (error: any) {
+    if (error.code === "P2003") {
+      // P2003 = Foreign Key Constraint Failed (User doesn't exist)
+      console.error(
+        "CRITICAL: User ID from Session not found in DB. User needs to re-login.",
+      );
+      throw new Error(
+        "User record mismatch. Please Sign Out and Sign In again.",
+      );
+    }
+    throw error;
+  }
 
   // Redirect to the editor page with the new project ID
-  redirect(`/editor/${project.id}`);
+  redirect(`/editor/${projectId}`);
 }
 
 // Create a project from template selected

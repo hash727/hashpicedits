@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       data: {
         plan: "PRO",
         stripeCurrentPeriodEnd: new Date(
-          subscription.current_period_end * 1000,
+          (subscription as Stripe.Subscription).current_period_end * 1000,
         ),
       },
     });

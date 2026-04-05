@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { 
   Pencil, 
   Paintbrush, 
@@ -16,6 +16,19 @@ import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 
+interface SidebarDrawProps {
+  canvas: any;
+  setBrush: (opts: {
+    type: string;
+    color?: string;
+    width: number;
+  }) => void;
+  undo: () => void;
+  redo: () => void;
+  enablePaintBrush: any;
+  enableLasso: any;
+}
+
 export function SidebarDraw({ 
   canvas, 
   setBrush, 
@@ -23,27 +36,47 @@ export function SidebarDraw({
   enableLasso,
   undo,
   redo 
-}: any) {
+}: SidebarDrawProps) {
   const [activeTool, setActiveTool] = useState<string>("pencil");
   const [width, setWidth] = useState(10);
   const [color, setColor] = useState("#3b82f6");
   const [usePressure, setUsePressure] = useState(false);
 
-  const changeTool = (type: string) => {
-    setActiveTool(type);
-    if (type === "pencil") setBrush({ type: "pencil", color, width });
-    if (type === "eraser") setBrush({ type: "eraser", width });
-    if (type === "brush") enablePaintBrush(color, width);
-    if (type === "lasso") enableLasso();
-  };
+  // const changeTool = (type: string) => {
+  //   setActiveTool(type);
+  //   if (type === "pencil") setBrush({ type: "pencil", color, width });
+  //   if (type === "eraser") setBrush({ type: "eraser", width });
+  //   if (type === "brush") enablePaintBrush(color, width);
+  //   if (type === "lasso") enableLasso();
+  // };
 
-  const updateSettings = (newWidth: number, newColor: string) => {
-    setWidth(newWidth);
-    setColor(newColor);
-    // Refresh current active tool with new settings
-    if (activeTool === "pencil") setBrush({ type: "pencil", color: newColor, width: newWidth });
-    if (activeTool === "brush") enablePaintBrush(newColor, newWidth);
-  };
+  // const updateSettings = (newWidth: number, newColor: string) => {
+  //   setWidth(newWidth);
+  //   setColor(newColor);
+  //   // Refresh current active tool with new settings
+  //   if (activeTool === "pencil") setBrush({ type: "pencil", color: newColor, width: newWidth });
+  //   if (activeTool === "brush") enablePaintBrush(newColor, newWidth);
+  // };
+  useEffect(() => {
+    if(!canvas) return;
+
+    // 1. Apply updates based on the active tool
+    if (activeTool === "pencil") {
+      // Calls your parent setBrush logic
+      setBrush({ type: "pencil", color, width });
+    } 
+    else if (activeTool === "brush") {
+      // Explicitly handle "Pro Brush" (Spray/Circle)
+      setBrush({ type: "brush", color, width });
+    } 
+    else if (activeTool === "eraser") {
+      // Eraser ignores color, but needs width
+      setBrush({ type: "eraser", width });
+    }
+    else if ( activeTool === "lasso"){
+      setBrush({ type: "lasso", width })
+    }
+  },[activeTool, width, color, canvas, setBrush])
 
   const togglePressure = (checked: boolean) => {
     setUsePressure(checked);
@@ -59,28 +92,28 @@ export function SidebarDraw({
           <Button 
             variant={activeTool === "pencil" ? "default" : "outline"} 
             className="flex-col h-20 gap-1"
-            onClick={() => changeTool("pencil")}
+            onClick={() => setActiveTool("pencil")}
           >
             <Pencil className="h-5 w-5" /> <span className="text-[10px]">Pen</span>
           </Button>
           <Button 
             variant={activeTool === "brush" ? "default" : "outline"} 
             className="flex-col h-20 gap-1"
-            onClick={() => changeTool("brush")}
+            onClick={() => setActiveTool("brush")}
           >
             <Paintbrush className="h-5 w-5" /> <span className="text-[10px]">Pro Brush</span>
           </Button>
           <Button 
             variant={activeTool === "lasso" ? "default" : "outline"} 
             className="flex-col h-20 gap-1"
-            onClick={() => changeTool("lasso")}
+            onClick={() => setActiveTool("lasso")}
           >
             <Spline className="h-5 w-5" /> <span className="text-[10px]">Lasso</span>
           </Button>
           <Button 
             variant={activeTool === "eraser" ? "default" : "outline"} 
             className="flex-col h-20 gap-1"
-            onClick={() => changeTool("eraser")}
+            onClick={() => setActiveTool("eraser")}
           >
             <Eraser className="h-5 w-5" /> <span className="text-[10px]">Eraser</span>
           </Button>
@@ -94,14 +127,16 @@ export function SidebarDraw({
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex justify-between text-[10px] font-bold uppercase text-slate-500">
-              <span>Thickness</span>
+              <span>Brsuh Size</span>
               <span>{width}px</span>
             </div>
             <Slider 
               defaultValue={[width]} 
               max={100} 
               min={1} 
-              onValueChange={([v]) => updateSettings(v, color)} 
+              step={1}
+              onValueChange={([v]) => setWidth(v)} 
+              className="[&_.bg-primary]:bg-indigo-600"
             />
           </div>
 
@@ -112,7 +147,7 @@ export function SidebarDraw({
                 {["#000000", "#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"].map((c) => (
                   <button
                     key={c}
-                    onClick={() => updateSettings(width, c)}
+                    onClick={() => setColor(c)}
                     className={`w-8 h-8 rounded-full border-2 ${color === c ? 'border-primary scale-110' : 'border-transparent'}`}
                     style={{ backgroundColor: c }}
                   />
@@ -120,9 +155,12 @@ export function SidebarDraw({
                 <input 
                   type="color" 
                   value={color}
-                  onChange={(e) => updateSettings(width, e.target.value)}
+                  onChange={(e) => setColor(e.target.value)}
                   className="w-8 h-8 rounded-full cursor-pointer"
                 />
+                <div className="w-8 h-8 rounded-full border-2 border-slate-200 flex items-center justify-center bg-slate-100 pointer-events-none">
+                   <span className="text-[8px]">MIX</span>
+                </div>
               </div>
             </div>
           )}
