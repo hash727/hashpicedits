@@ -62,3 +62,30 @@ export async function refreshUserStatus() {
   revalidatePath("/", "layout");
   revalidateTag("user-session", "page");
 }
+
+export async function createCustomerPortalSession() {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+
+  // 1. Get the user's Stripe Customer ID
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+  });
+
+  if (!user?.stripeId) {
+    throw new Error("No billing profile found");
+  }
+
+  // 2. Create a Portal Session
+  // This tells Stripe: "Let THIS specific customer manage their billing"
+  const portalSession = await stripe.billingPortal.sessions.create({
+    customer: user.stripeId,
+    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`, // Where to send them back
+  });
+
+  // 3. Redirect the user
+  redirect(portalSession.url);
+}

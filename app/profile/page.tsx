@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Zap, ShieldCheck, History } from "lucide-react";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Suspense } from "react";
+import { InvoiceList } from "@/components/billing/invoicd-list";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -92,7 +95,10 @@ export default async function ProfilePage() {
         <div className="border rounded-2xl overflow-hidden">
           <div className="p-4 text-center text-sm text-muted-foreground bg-slate-50/50">
             {/* You'll loop through your Stripe Invoices here later */}
-            No recent invoices found.
+            {/* Wrap in Suspense to show loading state while fetching from Stripe */}
+            <Suspense fallback={<InvoiceSkeleton />}>
+              <InvoiceList />
+            </Suspense>
           </div>
         </div>
       </section>
@@ -103,6 +109,16 @@ export default async function ProfilePage() {
           Delete Account
         </Button>
       </div>
+    </div>
+  );
+}
+
+function InvoiceSkeleton() {
+  return (
+    <div className="space-y-2">
+      {[1, 2, 3].map((i) => (
+        <Skeleton key={i} className="h-16 w-full rounded-lg" />
+      ))}
     </div>
   );
 }
