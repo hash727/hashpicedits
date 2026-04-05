@@ -25,9 +25,9 @@ export async function POST(req: Request) {
     // Type: Session
     const session = event.data.object as Stripe.Checkout.Session;
 
-    const subscription = (await stripe.subscriptions.retrieve(
+    const subscription: any = (await stripe.subscriptions.retrieve(
       session.subscription as string,
-    )) as unknown as Stripe.Subscription;
+    )) as Stripe.Subscription;
 
     const userId = session?.metadata?.userId;
 
@@ -54,9 +54,9 @@ export async function POST(req: Request) {
     // Type: Invoice (NOT Session)
     const invoice = event.data.object as Stripe.Invoice;
 
-    const subscription = await stripe.subscriptions.retrieve(
-      invoice.subscription as string,
-    );
+    const subscription: any = (await stripe.subscriptions.retrieve(
+      (invoice as any).subscription as string,
+    )) as unknown as Stripe.Subscription;
 
     // Ensure we have a valid subscription ID before updating
     if (subscription.id) {
