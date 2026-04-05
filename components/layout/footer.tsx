@@ -10,10 +10,10 @@ export function Footer() {
           {/* Brand Column */}
           <div className="col-span-1 md:col-span-1">
             <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-              BrandName
+              HasHPicEdits
             </span>
             <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-              Building the future of [Your Niche]. Simple, fast, and secure.
+              Building the future of all your editing needs. Simple, fast, and secure.
             </p>
           </div>
 
