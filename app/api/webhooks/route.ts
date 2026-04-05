@@ -25,28 +25,42 @@ export async function POST(req: Request) {
     // Type: Session
     const session = event.data.object as Stripe.Checkout.Session;
 
-    const subscription: any = (await stripe.subscriptions.retrieve(
-      session.subscription as string,
-    )) as Stripe.Subscription;
+    try {
+      console.log("👉 Starting Checkout Logic for Session:", session.id);
 
-    const userId = session?.metadata?.userId;
+      const userId = session?.metadata?.userId;
 
-    if (!userId) {
-      return new NextResponse("User ID missing in metadata", { status: 400 });
+      if (!userId) {
+        return new NextResponse("User ID missing in metadata", { status: 400 });
+      }
+      console.log("👤 User ID found:", userId);
+
+      const subscription: any = (await stripe.subscriptions.retrieve(
+        session.subscription as string,
+      )) as Stripe.Subscription;
+
+      console.log("💳 Subscription retrieved:", subscription.id);
+
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          plan: "PRO",
+          stripeSubscriptionId: subscription.id,
+          stripeId: subscription.customer as string,
+          stripePriceId: subscription.items.data[0].price.id,
+          stripeCurrentPeriodEnd: new Date(
+            subscription.current_period_end * 1000,
+          ),
+        },
+      });
+
+      console.log("✅ Database Updated Successfully for:", user.email);
+    } catch (internalError: any) {
+      // 🛑 THIS LOG WILL REVEAL THE BUG
+      console.error("❌ CRASH IN CHECKOUT HANDLER:", internalError.message);
+      // Return 200 anyway so Stripe doesn't retry endlessly while you debug
+      return new NextResponse("Internal Logic Error (Logged)", { status: 200 });
     }
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        plan: "PRO",
-        stripeSubscriptionId: subscription.id,
-        stripeId: subscription.customer as string,
-        stripePriceId: subscription.items.data[0].price.id,
-        stripeCurrentPeriodEnd: new Date(
-          subscription.current_period_end * 1000,
-        ),
-      },
-    });
   }
 
   // 2. Handle Renewals (Invoice Succeeded)
