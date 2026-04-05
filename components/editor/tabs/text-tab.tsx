@@ -116,7 +116,7 @@ export function TextTab({ canvas, selectedObject, addText, addTextbox }: any) {
               {filteredFonts.map(font => (
                 <button
                   key={font.name}
-                  onClick={() => applyFont(font.name, selectedObject, canvas, addText)}
+                  onClick={() => applyFont(font.name)}
                   className={`
                     w-full flex items-center justify-between p-3 rounded-xl border transition-all mb-2
                     ${currentFont === font.name ? "border-primary bg-primary/5" : "border-transparent hover:bg-slate-50"}

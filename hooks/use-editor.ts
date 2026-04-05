@@ -555,21 +555,35 @@ export const useEditor = (canvas: fabric.Canvas | null) => {
 
   const applyFilterPreset = (presetName: string | null) => {
     const activeObject = canvas?.getActiveObject() as fabric.Image;
+
+    // 1. Guard: Ensure we have an image
     if (!activeObject || activeObject.type !== "image") return;
 
-    // Clear existing filters
+    // 2. Reset: Clear existing filters
     activeObject.filters = [];
 
     if (presetName) {
-      // Instantiate and push the new filter
-      // @ts-ignore - Fabric filters are indexed by name
-      const filter = new fabric.Image.filters[presetName]();
-      activeObject.filters.push(filter);
+      // 3. Type Safety: Access filters safely
+      // We cast to 'any' to allow dynamic string indexing
+      const filterNamespace = fabric.Image.filters as any;
+      const FilterClass = filterNamespace[presetName];
+
+      // 4. Runtime Safety: Check if the class actually exists
+      if (FilterClass) {
+        const filter = new FilterClass();
+        activeObject.filters.push(filter);
+      } else {
+        console.warn(
+          `Filter "${presetName}" not found in fabric.Image.filters`,
+        );
+      }
     }
 
-    // Mandatory: Apply filters and re-render
+    // 5. Commit Changes
     activeObject.applyFilters();
     canvas?.renderAll();
+
+    // 6. Trigger Auto-Save
     canvas?.fire("object:modified");
   };
 
