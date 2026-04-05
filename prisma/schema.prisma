@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  // previewFeatures = ["driverAdapters"]
+  // output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Plan {
+  FREE
+  PRO
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id       String  @id @default(cuid())
+  Role     Role    @default(USER)
+  plan     Plan    @default(FREE)
+  stripeId String? @unique // For payment integration
+
+  // Add these For Subscription Tracking
+  stripeSubscriptionId   String?   @unique
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+  name                   String?
+  email                  String?   @unique
+  emailVerified          DateTime?
+  image                  String?
+  password               String? // For Credentials login
+  accounts               Account[]
+  sessions               Session[]
+  projects               Project[] // Relation to Design Projects
+  assets                 Asset[]
+  createdAt              DateTime? @default(now())
+  folders                Folder[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Revision {
+  id        String   @id @default(cuid())
+  name      String // e.g., "Auto-snapshot 12:45 PM"
+  json      Json // The Fabric.js state
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Folder {
+  id        String    @id @default(cuid())
+  name      String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects  Project[] //Relation to projects
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Project {
+  id           String     @id @default(cuid())
+  isPro        Boolean    @default(false)
+  name         String     @default("Untitled Design")
+  json         Json //Native PostgreSQL JSONB for Fabric.js
+  width        Int        @default(1200)
+  height       Int        @default(630)
+  thumbnailUrl String?    @db.Text
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  revisions    Revision[]
+  folderId     String? // Optional : A project can be a folder or lose
+  folder       Folder?    @relation(fields: [folderId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+  name      String? // Original filename
+  url       String // The public AWS S3 or Cloudinary
+  type      String? // e.g., 'image/png'
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  json        Json     // Stores the Fabric.js canvas state
+  width       Int
+  height      Int
+  thumbnail   String?  // Base64 or S3 URL
+  isPro       Boolean  @default(false) // For plan-based gating
+  category    String   @default("General")
+  createdAt   DateTime @default(now())
+}

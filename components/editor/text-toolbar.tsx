@@ -1,0 +1,468 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Slider } from "@/components/ui/slider";
+import { fabric } from "fabric";
+import { 
+    Type, 
+    Layers as ShadowIcon, 
+    Palette, 
+    Square,
+    Highlighter,
+    Italic,
+    Bold, 
+    Orbit,
+    Underline,
+    CaseSensitive,
+    Weight,
+    AlignRight,
+    AlignCenter,
+    AlignLeft,
+    RotateCcw,
+    BetweenVerticalEnd,
+    X,
+    AlignJustify
+} from "lucide-react";
+import { Separator } from "../ui/separator";
+
+const QUICK_SIZES = [12, 16, 24, 32, 48, 72, 96, 144];
+
+export function TextToolbar({ selectedObject, canvas }: { selectedObject: fabric.IText, canvas: fabric.Canvas }) {
+
+  if (!selectedObject) return null;
+
+  //  SAFETY CHECK: Ensure it's a text type object
+  // const isText = selectedObject.type === "i-text" || selectedObject.type === "text";
+  const isText = ["i-text", "text", "textbox"].includes(selectedObject?.type || "");
+  if (!isText) return null;
+  
+  const currentAlign = selectedObject.textAlign || "left";
+
+  const currentSize = selectedObject.fontSize || 32;
+ 
+
+  // 3. Implementation: Gradient Filling
+  const applyGradient = () => {
+    const gradient = new fabric.Gradient({
+      type: 'linear',
+      gradientUnits: 'pixels', // or 'percentage'
+      coords: { x1: 0, y1: 0, x2: selectedObject.width, y2: 0 },
+      colorStops: [
+        { offset: 0, color: '#ec4899' }, // Pink-500
+        { offset: 1, color: '#8b5cf6' }  // Violet-500
+      ]
+    });
+    selectedObject.set("fill", gradient);
+    canvas.renderAll();
+    canvas.fire("object:modified");
+  };
+
+  // 4. Implementation: Curved Text (Simplified Pro Logic)
+  // Note: For a true curve, we manipulate the 'path' property in Fabric 5.x
+  const applyTextCurve = (value: number, obj: any, canvas: any) => {
+    if (!obj || !canvas) return;
+
+    if (value === 0) {
+      obj.set("path", undefined);
+    } else {
+      // Math: High value = flatter curve, Low value = tighter curve [12]
+      const radius = 1000 / (value / 10);
+      const path = new fabric.Path(
+        `M 0 0 A ${radius} ${radius} 0 0 1 ${obj.width} 0`, 
+        { visible: false }
+      );
+      obj.set("path", path);
+    }
+    canvas.renderAll();
+    canvas.fire("object:modified");
+  };
+
+  const toggleBold = () => {
+    const isBold = selectedObject.fontWeight === "bold";
+    selectedObject.set("fontWeight", isBold ? "normal" : "bold");
+    canvas.renderAll();
+    canvas.fire("object:modified");
+  };
+
+  const toggleItalic = () => {
+    const isItalic = selectedObject.fontStyle === "italic";
+    selectedObject.set("fontStyle", isItalic ? "normal" : "italic");
+    canvas.renderAll();
+    canvas.fire("object:modified");
+  };
+
+  const toggleUnderline = () => {
+    const isUnderline = selectedObject.underline;
+    selectedObject.set("underline", !isUnderline);
+    canvas.renderAll();
+    canvas.fire("object:modified");
+  };
+
+  const applyFontWeight = (weight: number, obj: fabric.IText, canvas: fabric.Canvas) => {
+    // Fabric supports numeric weights (100, 400, 700, 900) or strings
+    obj.set("fontWeight", weight);
+    canvas.renderAll();
+    canvas.fire("object:modified");
+  };
+
+  const applyLetterSpacing = (spacing: number, obj: fabric.IText, canvas: fabric.Canvas) => {
+    // Value is usually between -100 and 500 for readable results
+    obj.set("charSpacing", spacing);
+    canvas.renderAll();
+    canvas.fire("object:modified");
+  };
+
+  const applyTextAlign = (align: "left" | "center" | "right" | "justify", obj: fabric.IText, canvas: fabric.Canvas) => {
+    // Fabric.js handles the geometry recalculation automatically [15]
+    obj.set("textAlign", align);
+    canvas.renderAll();
+    canvas.fire("object:modified");
+  };
+
+  const applyLineHeight = (value: number, obj: fabric.IText, canvas: fabric.Canvas) => {
+    if (!obj || !canvas) return;
+
+    // Standard range is 0.5 to 3.0 [15]
+    obj.set("lineHeight", value);
+    canvas.renderAll();
+    canvas.fire("object:modified");
+  };
+
+  const applyTextBackground = (color: string, obj: fabric.IText, canvas: fabric.Canvas) => {
+    if (!obj || !canvas) return;
+
+    // Set the background color (supports hex, rgb, or 'transparent') [1]
+    obj.set("textBackgroundColor", color);
+    
+    canvas.renderAll();
+    canvas.fire("object:modified");
+  };
+
+  const applyFontSize = (size: number, obj: fabric.IText, canvas: fabric.Canvas) => {
+    if (!obj || !canvas) return;
+
+    // 1. Apply the new numeric size [1]
+    obj.set("fontSize", size);
+    
+    // 2. Force recalculation of the bounding box and controls [52]
+    obj.setCoords(); 
+    
+    canvas.renderAll();
+    canvas.fire("object:modified");
+  };
+
+
+  return (
+    <div className="flex flex-col items-center gap-2 shadow-2xs shadow-blue-500/50 border-l pl-2 animate-in fade-in zoom-in duration-200">
+      <p className="text-xs text-gray-500/50">Text Toolbar</p>
+      <Separator orientation="horizontal" className="w-8 my-1" />
+
+      {/* FONT SIZE TOOL */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl border-2">
+            <span className="text-[10px] font-bold">{currentSize}</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent side="left" align="center" className="w-64 p-4 space-y-4 shadow-2xl">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold uppercase text-slate-500">Font Size</span>
+            <span className="text-[10px] font-mono font-bold text-primary">{currentSize}px</span>
+          </div>
+
+          <Slider 
+            min={8} max={400} step={1}
+            defaultValue={[currentSize]}
+            onValueChange={([v]) => applyFontSize(v, selectedObject, canvas)} 
+          />
+
+          <div className="grid grid-cols-4 gap-1 pt-2 border-t">
+            {QUICK_SIZES.map((size) => (
+              <Button 
+                key={size} 
+                variant="ghost" 
+                className="h-7 text-[10px] p-0 hover:bg-primary/10 hover:text-primary"
+                onClick={() => applyFontSize(size, selectedObject, canvas)}
+              >
+                {size}
+              </Button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <div className="grid grid-cols-3 gap-1 px-1">
+        {/* Bold Button */}
+        <Button 
+          variant={selectedObject.fontWeight === "bold" ? "secondary" : "ghost"} 
+          size="icon" 
+          className="h-8 w-8" 
+          onClick={toggleBold}
+        >
+          <Bold className="h-4 w-4" />
+        </Button>
+
+        {/* Italic Button */}
+        <Button 
+          variant={selectedObject.fontStyle === "italic" ? "secondary" : "ghost"} 
+          size="icon" 
+          className="h-8 w-8" 
+          onClick={toggleItalic}
+        >
+          <Italic className="h-4 w-4" />
+        </Button>
+
+        {/* Underline Button */}
+        <Button 
+          variant={selectedObject.underline ? "secondary" : "ghost"} 
+          size="icon" 
+          className="h-8 w-8" 
+          onClick={toggleUnderline}
+        >
+          <Underline className="h-4 w-4" />
+        </Button>
+      </div>
+      <Separator orientation="horizontal" className="w-6 mx-1" />
+
+      {/* Border/Stroke Tool */}
+      {/* <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Square className="h-4 w-4" /> Border
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-60 p-4 space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase">Border Width</label>
+            <Slider 
+                key={`stroke-${(selectedObject as any)?.id || 'none'}`}
+                defaultValue={[selectedObject?.strokeWidth ?? 0]} 
+                max={20} 
+                step={1} 
+                onValueChange={([v]) => applyStroke("#000000", v)} 
+            />
+          </div>
+        </PopoverContent>
+      </Popover> */}
+
+      {/* Shadow Tool
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-2">
+            <ShadowIcon className="h-4 w-4" /> Shadow
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-60 p-4 space-y-4">
+          <div className="space-y-2">
+            <div className="flex justify-between text-[10px] uppercase font-bold text-muted-foreground">
+                <span>Shadow Blur</span>
+                <span>{selectedObject.shadow ? (selectedObject.shadow as fabric.Shadow).blur : 0}</span>
+            </div>
+            <Slider 
+                
+                defaultValue={[(selectedObject)?.shadow ? (selectedObject.shadow as fabric.Shadow).blur : 0]} 
+                max={50} 
+                onValueChange={([v]) => applyShadow(v)} 
+            />
+          </div>
+        </PopoverContent>
+      </Popover> */}
+
+      <div className="grid grid-cols-3 gap-1 px-1">
+      
+      {/* 1. FONT WEIGHT SLIDER */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl border-2">
+            <Weight className="h-4 w-4 text-slate-500" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent side="left" align="center" className="w-60 p-4 space-y-4 shadow-2xl">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold uppercase text-slate-500">Font Weight</span>
+            <span className="text-[10px] font-mono font-bold text-primary">{selectedObject.fontWeight}</span>
+          </div>
+          <Slider 
+            min={100} max={900} step={100}
+            defaultValue={[typeof selectedObject.fontWeight === 'number' ? selectedObject.fontWeight : 400]}
+            onValueChange={([v]) => applyFontWeight(v, selectedObject, canvas)} 
+          />
+          <div className="flex justify-between text-[8px] text-slate-400 uppercase">
+            <span>Thin</span>
+            <span>Regular</span>
+            <span>Black</span>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* 2. LETTER SPACING (TRACKING) */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl border-2">
+            <CaseSensitive className="h-4 w-4 text-slate-500" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent side="left" align="center" className="w-60 p-4 space-y-4 shadow-2xl">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold uppercase text-slate-500">Letter Spacing</span>
+            <span className="text-[10px] font-mono font-bold text-primary">{selectedObject.charSpacing || 0}</span>
+          </div>
+          <Slider 
+            min={-100} max={500} step={10}
+            defaultValue={[selectedObject.charSpacing || 0]}
+            onValueChange={([v]) => applyLetterSpacing(v, selectedObject, canvas)} 
+          />
+        </PopoverContent>
+      </Popover>
+
+      {/* --- CURVE TOOL --- */}
+      {/* 2. Curve Tool */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl border-2">
+            <Orbit className="h-4 w-4 text-slate-500" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent side="left" align="center" className="w-60 p-4 space-y-4 shadow-2xl">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold uppercase text-slate-500">Curvature</span>
+             {/* RESET BUTTON */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 px-2 text-[9px] text-red-500 hover:text-red-600 hover:bg-red-50 gap-1"
+              onClick={() => applyTextCurve(0, selectedObject, canvas)}
+            >
+              <RotateCcw className="h-3 w-3" /> Reset
+            </Button>
+          </div>
+
+          <Slider 
+            min={-100} max={100} step={10}
+            onValueChange={([v]) => applyTextCurve(v, selectedObject, canvas)} 
+          />
+          <p className="text-[9px] text-slate-400 text-center italic">Bend text along a circular path</p>
+        </PopoverContent>
+      </Popover>
+      </div>
+
+      <Separator orientation="horizontal" className="w-8 my-1" />
+
+      <div className="grid grid-cols-3 gap-1 px-1">
+      {/* LINE HEIGHT TOOL */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl border-2">
+            <BetweenVerticalEnd className="h-4 w-4 text-slate-500" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent side="left" align="center" className="w-60 p-4 space-y-4 shadow-2xl">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold uppercase text-slate-500">Line Height</span>
+            <Button 
+              variant="ghost" size="sm" className="h-6 px-2 text-[9px] text-red-500"
+              onClick={() => applyLineHeight(1, selectedObject, canvas)}
+            >
+              <RotateCcw className="h-3 w-3 mr-1" /> Reset
+            </Button>
+          </div>
+
+          <Slider 
+            min={0.5} max={3} step={0.1}
+            defaultValue={[selectedObject.lineHeight || 1]}
+            onValueChange={([v]) => applyLineHeight(v, selectedObject, canvas)} 
+          />
+          
+          <div className="flex justify-between text-[8px] text-slate-400 uppercase">
+            <span>Tight</span>
+            <span>Normal (1.0)</span>
+            <span>Wide</span>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* TEXT BACKGROUND (HIGHLIGHT) TOOL */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl border-2">
+            <Highlighter className="h-4 w-4 text-slate-500" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent side="left" align="center" className="w-60 p-4 space-y-4 shadow-2xl">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold uppercase text-slate-500">Text Highlight</span>
+            <Button 
+              variant="ghost" size="sm" className="h-6 px-2 text-[9px] text-red-500 hover:bg-red-50"
+              onClick={() => applyTextBackground("transparent", selectedObject, canvas)}
+            >
+              <X className="h-3 w-3 mr-1" /> Clear
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <input 
+              type="color" 
+              value={selectedObject.textBackgroundColor || "#ffffff"} 
+              onChange={(e) => applyTextBackground(e.target.value, selectedObject, canvas)}
+              className="w-full h-10 rounded-md cursor-pointer border-2 border-slate-100 shadow-sm"
+            />
+            <p className="text-[9px] text-slate-400 text-center italic">
+              Adds a solid color box behind the text lines
+            </p>
+          </div>
+        </PopoverContent>
+      </Popover>
+      </div>
+
+      {/* TEXT ALIGNMENT GRID */}
+      <div className="flex flex-col gap-1.5 items-center w-full px-1">
+        <span className="text-[10px] font-bold uppercase text-slate-400">Align</span>
+        <div className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-lg w-full">
+          <Button 
+            variant={currentAlign === "left" ? "secondary" : "ghost"} 
+            size="icon" className="h-7 w-full rounded-md shadow-sm" 
+            onClick={() => applyTextAlign("left", selectedObject, canvas)}
+          >
+            <AlignLeft className="h-3.5 w-3.5" />
+          </Button>
+          
+          <Button 
+            variant={currentAlign === "center" ? "secondary" : "ghost"} 
+            size="icon" className="h-7 w-full rounded-md shadow-sm" 
+            onClick={() => applyTextAlign("center", selectedObject, canvas)}
+          >
+            <AlignCenter className="h-3.5 w-3.5" />
+          </Button>
+          
+          <Button 
+            variant={currentAlign === "right" ? "secondary" : "ghost"} 
+            size="icon" className="h-7 w-full rounded-md shadow-sm" 
+            onClick={() => applyTextAlign("right", selectedObject, canvas)}
+          >
+            <AlignRight className="h-3.5 w-3.5" />
+          </Button>
+
+          {/* ✅ NEW JUSTIFY BUTTON */}
+          <Button 
+            variant={currentAlign === "justify" ? "secondary" : "ghost"} 
+            size="icon" className="h-7 w-full rounded-md shadow-sm" 
+            onClick={() => applyTextAlign("justify", selectedObject, canvas)}
+          >
+            <AlignJustify className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+
+
+      {/* Gradient Tool */}
+      <Button variant="outline" size="sm" className="gap-2 bg-gradient-to-r from-pink-500 to-violet-500 text-white border-none hover:opacity-90" onClick={applyGradient}>
+        <Palette className="h-4 w-4" /> Gradient
+      </Button>
+
+      <Separator orientation="horizontal" className="w-8 my-1" />
+
+    </div>
+  );
+}
