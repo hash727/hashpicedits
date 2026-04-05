@@ -20,16 +20,15 @@ export async function POST(req: Request) {
     return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
   }
 
-  const session = event.data.object as Stripe.Checkout.Session;
-
-  // 1. Handle Successful Checkout (First time purchase)
+  // 1. Handle New Subscriptions (Checkout Completed)
   if (event.type === "checkout.session.completed") {
-    // Retrieve the full subscription object to get the end date
-    const subscription = await stripe.subscriptions.retrieve(
-      session.subscription as string,
-    );
+    // Type: Session
+    const session = event.data.object as Stripe.Checkout.Session;
 
-    // CRITICAL: Ensure the metadata contains our userId from createCheckoutSession
+    const subscription = (await stripe.subscriptions.retrieve(
+      session.subscription as string,
+    )) as unknown as Stripe.Subscription;
+
     const userId = session?.metadata?.userId;
 
     if (!userId) {
@@ -39,55 +38,53 @@ export async function POST(req: Request) {
     await prisma.user.update({
       where: { id: userId },
       data: {
-        plan: "PRO", // Upgrade to Pro
+        plan: "PRO",
         stripeSubscriptionId: subscription.id,
         stripeId: subscription.customer as string,
         stripePriceId: subscription.items.data[0].price.id,
-        // Stripe uses seconds, JS Date needs milliseconds
         stripeCurrentPeriodEnd: new Date(
           subscription.current_period_end * 1000,
         ),
       },
     });
-
-    console.log(
-      `✅ User ${userId} upgraded to PRO until ${new Date(subscription.current_period_end * 1000)}`,
-    );
   }
 
-  // 2. Handle Renewals or Period Updates (Automatic)
+  // 2. Handle Renewals (Invoice Succeeded)
   if (event.type === "invoice.payment_succeeded") {
+    // Type: Invoice (NOT Session)
+    const invoice = event.data.object as Stripe.Invoice;
+
     const subscription = await stripe.subscriptions.retrieve(
-      session.subscription as string,
+      invoice.subscription as string,
     );
 
-    await prisma.user.update({
-      where: { stripeSubscriptionId: subscription.id },
-      data: {
-        plan: "PRO",
-        stripeCurrentPeriodEnd: new Date(
-          (subscription as Stripe.Subscription).current_period_end * 1000,
-        ),
-      },
-    });
-
-    console.log(`🔄 Subscription ${subscription.id} renewed.`);
+    // Ensure we have a valid subscription ID before updating
+    if (subscription.id) {
+      await prisma.user.update({
+        where: { stripeSubscriptionId: subscription.id },
+        data: {
+          plan: "PRO", // Ensure they stay/become Pro on renewal
+          stripeCurrentPeriodEnd: new Date(
+            subscription.current_period_end * 1000,
+          ),
+        },
+      });
+    }
   }
 
-  // 3. Handle Cancellations or Expired Payments
+  // 3. Handle Cancellations (Subscription Deleted)
   if (event.type === "customer.subscription.deleted") {
+    // Type: Subscription (NOT Session)
     const subscription = event.data.object as Stripe.Subscription;
 
     await prisma.user.update({
       where: { stripeSubscriptionId: subscription.id },
       data: {
-        plan: "FREE", // Downgrade back to Free
+        plan: "FREE",
         stripePriceId: null,
         stripeCurrentPeriodEnd: null,
       },
     });
-
-    console.log(`❌ Subscription ${subscription.id} cancelled/expired.`);
   }
 
   return new NextResponse(null, { status: 200 });
