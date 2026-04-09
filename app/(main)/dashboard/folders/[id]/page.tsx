@@ -16,19 +16,35 @@ export default async function FolderPage({
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
+  const userId = session?.user?.id;
+
   // 1. Fetch Folder & its Projects
-  const folder = await prisma.folder.findUnique({
-    where: { 
-      id: id,
-      userId: session.user.id // Security: Ensure user owns this folder
-    },
-    include: {
-      projects: {
-        orderBy: { updatedAt: "desc" }
+  const [user, folder] = await Promise.all([
+    prisma.user.findUnique({
+      where: {
+        id: userId
       },
-      _count: { select: { projects: true } }
-    }
-  });
+      select: {
+        plan: true,
+      }
+    }),
+    prisma.folder.findUnique({
+      where: { 
+        id: id,
+        userId: session.user.id // Security: Ensure user owns this folder
+      },
+      include: {
+        projects: {
+          orderBy: { updatedAt: "desc" }
+        },
+        _count: { select: { projects: true } }
+      }
+    })
+  ]);
+
+  if(!user) return
+
+  const isPro = user.plan === "PRO";
 
   if (!folder) notFound();
 
@@ -60,7 +76,11 @@ export default async function FolderPage({
       {folder.projects.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {folder.projects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard 
+              key={project.id} 
+              project={project} 
+              isPro={isPro}
+            />
           ))}
         </div>
       ) : (
