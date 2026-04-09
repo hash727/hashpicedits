@@ -271,6 +271,16 @@ export async function deleteProject(projectId: string) {
   }
 
   try {
+    // 1. GET USER PLAN
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { plan: true },
+    });
+
+    // 2. CHECK PERMISSION
+    if (user?.plan !== "PRO") {
+      return { error: "Restricted: Only PRO users can delete projects." };
+    }
     // 1. Delete with Strict Ownership Check
     await prisma.project.delete({
       where: {
