@@ -2,9 +2,20 @@
 import { useState, useEffect, useCallback } from "react";
 import { useInView } from "react-intersection-observer";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ImagePlus, Monitor } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export function StockSearch({ onSelect }: { onSelect: (url: string) => void }) {
-  const [query, setQuery] = useState("nature");
+interface StockSearchProps {
+  onSelect: (url: string) => void;
+  onAddImage?: (url: string) => void;
+}
+
+export function StockSearch({ 
+  onSelect,
+  onAddImage,
+}: StockSearchProps ) {
+  const [query, setQuery] = useState("abstract");
   const [images, setImages] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false); // Guard to satisfy linter [1]
@@ -60,12 +71,22 @@ export function StockSearch({ onSelect }: { onSelect: (url: string) => void }) {
     }
   }, [query, page, isLoading]);
 
+  // Trigger Search on Enter
+  const handleSearch = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") fetchImages(true);
+  };
+
   useEffect(() => {
     // Condition-based execution avoids direct setState collisions [25]
-    if (inView && !isLoading) {
+    if (inView && !isLoading && images.length > 0) {
       fetchImages();
     }
-  }, [inView, isLoading, fetchImages]);
+  }, [inView, isLoading, fetchImages, images.length]);
+
+  // Initial Load
+  useEffect(() => {
+    if (images.length === 0) fetchImages(true);
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -73,17 +94,63 @@ export function StockSearch({ onSelect }: { onSelect: (url: string) => void }) {
         placeholder="Search 4K photos..." 
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && fetchImages(true)}
+        onKeyDown={handleSearch}
+        className="bg-slate-50 border-slate-200"
       />
       <div className="grid grid-cols-2 gap-2">
-        {images.map((img, i) => (
-          <button key={`${img.id}-${i}`} onClick={() => onSelect(img.urls.regular)} className="aspect-video bg-slate-100 rounded-md overflow-hidden hover:opacity-80 transition group">
-            <img src={img.urls.small} alt={img.alt_description} className="w-full h-full object-cover group-hover:scale-110 transition duration-300" />
-          </button>
+        {images.map((img) => (
+          <div 
+            key={img.id} 
+            className="group relative aspect-video bg-slate-100 rounded-lg overflow-hidden border border-slate-200 shadow-sm"
+          >
+            {/* Image Thumbnail */}
+            <img 
+              src={img.urls.small} 
+              alt={img.alt_description} 
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+            />
+
+            {/* --- HOVER OVERLAY (THE ACTION MENU) --- */}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+              
+              {/* Option 1: Set as Background */}
+              <Button 
+                size="sm" 
+                variant="secondary"
+                className="w-full h-8 text-[10px] font-semibold gap-2 bg-white/90 hover:bg-white"
+                onClick={() => onSelect(img.urls.regular)}
+              >
+                <Monitor className="w-3 h-3" />
+                Set BG
+              </Button>
+
+              {/* Option 2: Add as Image Layer */}
+              {onAddImage && (
+                <Button 
+                  size="sm" 
+                  variant="secondary"
+                  className="w-full h-8 text-[10px] font-semibold gap-2 bg-white/90 hover:bg-white"
+                  onClick={() => onAddImage(img.urls.regular)}
+                >
+                  <ImagePlus className="w-3 h-3" />
+                  Add Img
+                </Button>
+              )}
+
+            </div>
+          </div>
         ))}
-        <div ref={ref} className="h-10 w-full flex items-center justify-center text-[10px] text-slate-400">
+        {/* <div ref={ref} className="h-10 w-full flex items-center justify-center text-[10px] text-slate-400">
           {isLoading ? "Loading..." : images.length > 0 ? "Scroll for more" : ""}
-        </div>
+        </div> */}
+
+        {/* Loading Skeletons */}
+        {isLoading && Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="aspect-video w-full rounded-lg bg-slate-200" />
+        ))}
+
+        {/* Infinite Scroll Sentinel */}
+        <div ref={ref} className="h-4 w-full" />
       </div>
     </div>
   );

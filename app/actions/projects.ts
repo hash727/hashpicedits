@@ -188,7 +188,7 @@ export async function createProjectFromTemplate(templateId: string) {
   // 2. Create the new project
   const newProject = await prisma.project.create({
     data: {
-      name: `My ${template.name}`,
+      name: `My ${template.name} (copy)`,
       json: template.json as any,
       width: template.width,
       height: template.height,
@@ -199,6 +199,37 @@ export async function createProjectFromTemplate(templateId: string) {
 
   // 3. Redirect to the editor
   redirect(`/editor/${newProject.id}`);
+}
+
+// 2. Overwrite EXISTING Project with Template
+export async function updateProjectWithTemplate(
+  projectId: string,
+  templateId: string,
+) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const template = await prisma.template.findUnique({
+    where: { id: templateId },
+  });
+  if (!template) throw new Error("Template not found");
+
+  // Update existing project
+  await prisma.project.update({
+    where: {
+      id: projectId,
+      userId: session.user.id, // Security: Ensure ownership
+    },
+    data: {
+      json: template.json as any,
+      width: template.width,
+      height: template.height,
+      updatedAt: new Date(),
+    },
+  });
+
+  revalidatePath(`/editor/${projectId}`);
+  redirect(`/editor/${projectId}`);
 }
 
 export async function getUserProjects() {

@@ -16,6 +16,7 @@ export function SidebarBackground({ canvas }: { canvas: any }) {
     setBackgroundImage,
     setBackgroundAdjustment,
     setBackgroundOpacity,
+    addImage,
   } = useEditor(canvas);
   
   if (!canvas) return <div className="p-4 text-xs text-muted-foreground text-center">Loading workspace...</div>;
@@ -109,12 +110,15 @@ export function SidebarBackground({ canvas }: { canvas: any }) {
       
       <div className="h-[1px] bg-slate-100 w-full my-6" />
 
-      {/* SECTION 4: STOCK PHOTOS [93] */}
+      {/* SECTION 4: STOCK PHOTOS */}
       <div className="space-y-3">
         <h4 className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">
             Stock Photography
         </h4>
-        <StockSearch onSelect={setBackgroundImage} />
+        <StockSearch 
+          onSelect={setBackgroundImage} 
+          onAddImage={addImage}
+        />
       </div>
 
 

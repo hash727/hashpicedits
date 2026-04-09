@@ -38,10 +38,12 @@ export function EditorClient({
   const [isReady, setIsReady] = useState(false);
   const isPro = userPlan === 'PRO';
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
+  const isInitialized = useRef(false);
 
   const { saveHistory, undo, redo, canUndo, canRedo } = useHistory(canvas);
   const { 
@@ -70,13 +72,15 @@ export function EditorClient({
     changeColor,
     recentColors,
     handleEyedropper,
+    loadTemplateData,
   } = useEditor(canvas);
 
   const searchParams = useSearchParams();
   const router = useRouter();
   const mergeId = searchParams.get("mergeTemplateId");
   const hasMerged = useRef(false); // Prevent infinite merge loops
-  const isInitialized = useRef(false);
+
+  const { setupGuidelines } = useGuidelines(canvas);
 
   // Initialize Autosave
   useAutosave(canvas, projectId);
@@ -91,8 +95,6 @@ export function EditorClient({
 
       let isDisposed = false;   // Flag to track if cleanup has run
 
-    //  initial canvas setup
-    // fabric.Object.prototype.centeredScaling = true;
 
     // 1. Initialize Fabric Canvas
     const fabricCanvas = new fabric.Canvas(canvasRef.current, {
@@ -102,19 +104,6 @@ export function EditorClient({
       preserveObjectStacking: true,
     });
 
-    // SAFETY TIMEOUT: Forece Load if Fabric hangs
-    // const timeout = setTimeout(() => {
-    //   if(loading){
-    //     console.warn("Fabric.js loadFromJSON timed out. Forcing UI....")
-    //     setLoading(false);
-    //     setCanvas(fabricCanvas);
-    //     isInitialized.current = true;
-    //   }
-    // }, 5000)
-
-    // 2. Load the JSON data from PostgreSQL
-    
-    // 1. EXPOSE CANVAS: For the repair script and debugging
     (window as any).canvas = fabricCanvas;
 
     try {
@@ -127,6 +116,13 @@ export function EditorClient({
         setCanvas(fabricCanvas);
         setLoading(false);
         isInitialized.current = true;
+
+        // Initial Zoom Fit
+        const workspaceRatio = fabricCanvas.width! / fabricCanvas.height!;
+        // Simple fit logic (you can enhance this via useEditor hook)
+        if(containerRef.current) {
+           // Fit logic here if needed
+        }
       });
     } catch (error) {
        console.error("Critical error during loadFromJSON:", error);
@@ -144,7 +140,11 @@ export function EditorClient({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if the user pressed Delete or Backspace
-      if ((e.key === "Delete" || e.key === "Backspace") && canvas) {
+       if ((e.key === "Delete" || e.key === "Backspace") && canvas) {
+        // Prevent deleting if editing text
+        const activeObj = canvas.getActiveObject();
+        if(activeObj && (activeObj.type === 'i-text' || activeObj.type === 'textbox') && (activeObj as any).isEditing) return;
+
         const activeObjects = canvas.getActiveObjects();
         if (activeObjects.length > 0) {
           canvas.discardActiveObject(); // Clear selection
@@ -158,6 +158,7 @@ export function EditorClient({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [canvas]);
 
+  // 2. Selection Tracking
   useEffect(() => {
     if (!canvas) return;
 
@@ -180,7 +181,13 @@ export function EditorClient({
     };
   }, [canvas]);
 
-  // History like undo redo
+  // 3. Guidelines & History
+  useEffect(() => {
+    if(canvas){
+       setupGuidelines()
+    };
+  }, [canvas, setupGuidelines]);
+
   useEffect(() => {
     if (!canvas) return;
 
@@ -188,12 +195,12 @@ export function EditorClient({
     
     canvas.on("object:modified", handleModified);
     canvas.on("object:added", handleModified);
-    canvas.on("object:removed", handleModified);
+    // canvas.on("object:removed", handleModified);
 
     return () => {
       canvas.off("object:modified", handleModified);
       canvas.off("object:added", handleModified);
-      canvas.off("object:removed", handleModified);
+      // canvas.off("object:removed", handleModified);
     };
   }, [canvas, saveHistory]);
 
@@ -238,15 +245,6 @@ export function EditorClient({
     }
   }
 
-  const { setupGuidelines } = useGuidelines(canvas);
-
-  useEffect(() => {
-    if(canvas){
-      setupGuidelines();
-    }
-  }, [canvas])
-
-  // Inside EditorClient.tsx
 
   useEffect(() => {
     const handleShortcuts = (e: KeyboardEvent) => {
@@ -279,29 +277,28 @@ export function EditorClient({
       e.preventDefault();
       redo();
     }
-  };
 
-  window.addEventListener("keydown", handleShortcuts);
-  
-  // 3. Cleanup to prevent memory leaks and "ghost" key presses
-  return () => {
-    window.removeEventListener("keydown", handleShortcuts);
-  };
+    // 6. ESC: Exit Drawing Mode & Deselect (The Feature You Asked For)
+      if (e.key === "Escape") {
+        e.preventDefault();
+        
+        // If drawing, stop drawing
+        if (canvas.isDrawingMode) {
+          canvas.isDrawingMode = false;
+        }
+        
+        // Also clear any active selection
+        canvas.discardActiveObject();
+        canvas.requestRenderAll();
+      }
+    };
+
+    window.addEventListener("keydown", handleShortcuts);
+    return () => window.removeEventListener("keydown", handleShortcuts);
+
 }, [canvas, groupObjects, ungroupObjects, undo, redo]); // Dependencies are vital!
 
-const loadTemplateData = async (json: any) => {
-  if (!canvas) return;
-  
-  setLoading(true);
-  // loadFromJSON is async in Fabric 5.3.0
-  canvas.loadFromJSON(json, () => {
-    canvas.renderAll();
-    // Re-center or fit to screen if template size differs
-    fitScreen(); 
-    setLoading(false);
-    canvas.fire("object:modified"); // Trigger your useAutosave hook
-  });
-};
+
 
 useEffect(() => {
     // Only run if we have a mergeId, a working canvas, and haven't merged yet
@@ -462,17 +459,8 @@ useEffect(() => {
 
   return (
     <TooltipProvider delayDuration={0}>
-    <div className="flex h-screen w-full flex-col overflow-hidden">
-        {/* <header className="h-14 border-b flex items-center justify-between px-6 bg-white"> */}
-
-        {/* <div className="flex items-center gap-4">
-          <span className="font-bold text-lg">Editor</span>
-          <span className="text-xs text-muted-foreground italic">Auto-saving...</span>
-        </div>
-        <SelectionToolbar selectedObject={selectedObject} canvas={canvas} />
+    <div className="flex flex-col h-screen bg-slate-100 overflow-hidden">
         
-        <Button size="sm">Export PNG</Button> */}
-      <header className="shrink-0 z-50">
         <EditorNavbar 
           projectId={projectId}
           projectName={initialName}
@@ -485,14 +473,12 @@ useEffect(() => {
           fitScreen={fitScreen}
           isSaving={isSaving}
         />
-        
-          
-        
-      </header>
+
+      
 
       {/* Sidebar section */}
-      <div className="flex-1 flex overflow-hidden relative">
-        <aside className="w-80 border-r bg-white flex flex-col shrink-0 overflow-hidden" >
+      <div className="flex-1 flex h-full overflow-hidden ">
+        <aside className="w-[400px] flex-shrink-0 border-r border-slate-200 bg-white z-20" >
           <EditorSidebar 
             canvas={canvas} 
             selectedObject={selectedObject}
@@ -503,10 +489,28 @@ useEffect(() => {
 
         {/* MAIN CANVAS AREA  */}
         <main 
-          className=" flex-1 relative overflow-hidden flex flex-col"
+          className=" flex-1 relative bg-slate-100 overflow-hidden"
           onDragOver={(e) => e.preventDefault()} //Required to allow drop
           onDrop={onDrop}
         >
+
+          {/* Centering Container */}
+          <div 
+            ref={containerRef} 
+            className="absolute inset-0 flex items-center justify-center p-8"
+          >
+            
+              {loading && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-100/50">
+                  <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                </div>
+              )}
+             {/* The Actual Fabric Canvas */}
+             <div className="shadow-2xl border border-slate-200 bg-white">
+                <canvas ref={canvasRef} />
+             </div>
+          </div>
+
           {/* Floating Draw Toolbar */}
           {canvas?.isDrawingMode && ( 
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
@@ -549,34 +553,9 @@ useEffect(() => {
             </div>
           )}
 
-          {/* <div className="min-h-screen w-full flex items-center justify-center "> */}
-            {/* <div className="shadow-[0_0_50px_rgba(0,0,0,0.15)] bg-white border border-slate-300 relative"> */}
-            {/* CANVAS CONTAINER */}
-          <div 
-            className="flex-1 relative bg-slate-200/50 overflow-auto flex items-center justify-center p-10"
-            onDrop={onDrop}
-            onDragOver={(e) => e.preventDefault()}
-          >
-
-              {loading && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-100/50">
-                  <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                </div>
-              )}
-          
-            {/* The Actual Canvas Container */}
-            {/* <div className="shadow-2xl bg-white border border-slate-300"> */}
-              <div className="shadow-2xl bg-white">
-                <canvas ref={canvasRef} />
-              </div>
-            </div>
-          {/* </div> */}
-
-          {/* Floating Zoom UI
-          {canvas && <ZoomControls canvas={canvas} />} */}
 
           {/* ZOOM CONTROLS (Bottom Right) */}
-            <div className="absolute bottom-6 right-6 z-50">
+            <div className="absolute bottom-4 right-4 z-50">
               <ZoomControls canvas={canvas} />
             </div>
           

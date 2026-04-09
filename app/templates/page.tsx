@@ -3,6 +3,9 @@ import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { getPublicTemplates } from "../actions/templates";
+import { TemplateActionModal } from "@/components/templates/template-action-modal";
+import Link from "next/link";
+import { ArrowLeft, LayoutGrid } from "lucide-react";
 
 export default function TemplatesGallery() {
   const [templates, setTemplates] = useState<any[]>([]);
@@ -27,8 +30,31 @@ export default function TemplatesGallery() {
 
   return (
     <div className="max-w-7xl mx-auto p-8 space-y-12">
-      <div className="space-y-4">
-        <h1 className="text-4xl font-black tracking-tight text-slate-900">Design Templates</h1>
+      {/* <div className="space-y-4"> */}
+        {/* <h1 className="text-4xl font-black tracking-tight text-slate-900">Design Templates</h1> */}
+         {/* --- HEADER SECTION --- */}
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+              <Link href="/dashboard" className="hover:text-indigo-600 transition-colors flex items-center gap-1">
+                <ArrowLeft className="w-3 h-3" /> Dashboard
+              </Link>
+              <span>/</span>
+              <span className="text-slate-900 dark:text-white font-medium">Library</span>
+            </div>
+            <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+              Design Templates
+            </h1>
+          </div>
+
+          {/* Direct Link Button */}
+          <Link href="/dashboard">
+            <Button variant="outline" className="gap-2 border-slate-200 dark:border-slate-800">
+              <LayoutGrid className="w-4 h-4" /> Go to Workspace
+            </Button>
+          </Link>
+        </div>
         
         {/* CATEGORY FILTER BAR [24, 27] */}
         <div className="flex flex-wrap gap-2 pb-4">
@@ -80,6 +106,12 @@ export default function TemplatesGallery() {
           </div>
         ))}
       </div>
+
+    <TemplateActionModal
+        isOpen={!!selectedTemplate}
+        template={selectedTemplate}
+        onClose={() => setSelectedTemplate(null)}
+    />
     </div>
   );
 }

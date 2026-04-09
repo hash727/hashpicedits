@@ -19,12 +19,24 @@ export const useEditor = (canvas: fabric.Canvas | null) => {
 
   const [recentColors, setRecentColors] = useState<string[]>([]);
 
+  // --- HELPER: Get Center Coordinates ---
+  const getCenter = () => {
+    if (!canvas) return { x: 0, y: 0 };
+    return {
+      x: canvas.getWidth() / 2,
+      y: canvas.getHeight() / 2,
+    };
+  };
+
   const addText = (content: string, options?: any) => {
     if (!canvas) return;
+    const { x, y } = getCenter();
 
     const text = new fabric.IText(content, {
-      left: 100,
-      top: 100,
+      left: x,
+      top: y,
+      originX: "center",
+      originY: "center",
       padding: 10,
       objectCaching: false,
       fontFamily: "Arial",
@@ -38,10 +50,13 @@ export const useEditor = (canvas: fabric.Canvas | null) => {
 
   const addTextbox = (content: string, options?: any) => {
     if (!canvas) return;
+    const { x, y } = getCenter();
     // Textbox is specialized for paragraphs/wrapping [15]
     const textbox = new fabric.Textbox(content, {
-      left: 100,
-      top: 100,
+      left: x,
+      top: y,
+      originX: "center",
+      originY: "center",
       width: 250, // Default width triggers wrapping logic
       padding: 10, // Prevents clipping on line wraps [53]
       objectCaching: false, // Ensures crisp rendering at any zoom [30]
@@ -54,9 +69,12 @@ export const useEditor = (canvas: fabric.Canvas | null) => {
 
   const addShape = (type: string) => {
     if (!canvas) return;
+    const { x, y } = getCenter();
     const common = {
-      left: 150,
-      top: 150,
+      left: x,
+      top: y,
+      originX: "center",
+      originY: "center",
       fill: "#3b82f6",
       width: 100,
       height: 100,
@@ -104,6 +122,35 @@ export const useEditor = (canvas: fabric.Canvas | null) => {
       canvas.setActiveObject(shape);
       canvas.renderAll();
     }
+  };
+
+  // 4. ADD IMAGE (Centered)
+  const addImage = (url: string) => {
+    if (!canvas) return;
+    const { x, y } = getCenter();
+
+    fabric.Image.fromURL(
+      url,
+      (img) => {
+        img.set({
+          left: x,
+          top: y,
+          originX: "center",
+          originY: "center",
+        });
+
+        // Scale down if image is huge (larger than canvas)
+        if (img.width! > canvas.getWidth()) {
+          img.scaleToWidth(canvas.getWidth() / 2);
+        }
+
+        canvas.add(img);
+        canvas.setActiveObject(img);
+        canvas.renderAll();
+        canvas.fire("object:modified");
+      },
+      { crossOrigin: "anonymous" },
+    );
   };
 
   // Line Tool Login
@@ -1129,10 +1176,25 @@ export const useEditor = (canvas: fabric.Canvas | null) => {
     }
   };
 
+  const loadTemplateData = async (json: any) => {
+    if (!canvas) return;
+
+    console.log("🔄 Loading Template...");
+    // loadFromJSON is async in Fabric 5.3.0
+    canvas.loadFromJSON(json, () => {
+      canvas.renderAll();
+      // Re-center or fit to screen if template size differs
+      fitScreen();
+
+      canvas.fire("object:modified"); // Trigger your useAutosave hook
+    });
+  };
+
   return {
     addText,
     addTextbox,
     addShape,
+    addImage,
     addLine,
     changeColor,
     toggleDrawingMode,
@@ -1175,5 +1237,6 @@ export const useEditor = (canvas: fabric.Canvas | null) => {
     setBackgroundImage,
     setBackgroundAdjustment,
     setBackgroundOpacity,
+    loadTemplateData,
   };
 };
