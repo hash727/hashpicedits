@@ -11,7 +11,15 @@ export default async function DashboardPage() {
   const session = await auth();
   const userId = session?.user?.id;
 
-  const [folders, designs] = await Promise.all([
+  const [user, folders, designs] = await Promise.all([
+    prisma.user.findUnique({
+      where: {
+        id: userId
+      },
+      select:{
+        plan: true,
+      },
+    }),
     prisma.folder.findMany({
       where: { userId },
       include: { _count: { select: { projects: true } } },
@@ -22,6 +30,8 @@ export default async function DashboardPage() {
       orderBy: { updatedAt: 'desc' }
     })
   ]);
+
+  const isPro = user?.plan === "PRO";
 
   return (
     // 1. GLOBAL DARK WRAPPER
@@ -81,7 +91,11 @@ export default async function DashboardPage() {
             </div>
           
           {/* Pass dark mode classes down if needed, or handle in component */}
-          <DesignGrid designs={designs as any} folders={folders} />
+          <DesignGrid 
+            designs={designs as any} 
+            folders={folders} 
+            isPro={isPro}
+          />
         </div>
 
       </div>

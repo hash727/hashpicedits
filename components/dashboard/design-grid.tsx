@@ -28,6 +28,7 @@ interface Folder {
 interface DesignGridProps {
   designs: Design[];
   folders?: Folder[];
+  isPro: boolean;
 }
 
 function SubmitButton() {
@@ -52,7 +53,7 @@ function SubmitButton() {
   );
 }
 
-export function DesignGrid({ designs, folders = [] }: DesignGridProps) {
+export function DesignGrid({ designs, folders = [], isPro }: DesignGridProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 pb-20">
       {/* 1. THE "CREATE NEW" CARD */}
@@ -72,6 +73,7 @@ export function DesignGrid({ designs, folders = [] }: DesignGridProps) {
           key={design.id}
           project={design}
           folders={folders} // Passing folders allows the "Move to Folder" menu to work
+          isPro={isPro}
         />
       ))}
     </div>

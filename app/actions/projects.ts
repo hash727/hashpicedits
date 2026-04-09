@@ -262,3 +262,29 @@ export async function getUserProjects() {
     return [];
   }
 }
+
+export async function deleteProject(projectId: string) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+
+  try {
+    // 1. Delete with Strict Ownership Check
+    await prisma.project.delete({
+      where: {
+        id: projectId,
+        // SECURITY CRITICAL: ensures user owns the project
+        userId: session.user.id,
+      },
+    });
+
+    // 2. Refresh Dashboard UI
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("Delete failed:", error);
+    return { error: "Failed to delete project. You might not be the owner." };
+  }
+}
