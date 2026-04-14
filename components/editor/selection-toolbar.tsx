@@ -32,6 +32,7 @@ import {
   Pipette,
   History, 
   GripVertical,
+  GripHorizontal,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Slider } from "@/components/ui/slider";
@@ -254,26 +255,33 @@ const currentFill = selectedObject?.fill as string;
       drag
       // ✅ Constraint Options:
       // Option A: Screen boundaries in pixels [4]
-       dragConstraints={{ left: -1000, right: 24, top: 24, bottom: 800 }} 
+       dragConstraints={{ left: -500, right: 400, top: -600, bottom: 0 }} 
       
       // Option B: Snap back to start if dragged too far [11]
-      dragElastic={0.1} 
+      // dragElastic={0.1} 
 
       dragControls={dragControls}
       dragListener={false}
       dragMomentum={false}
+
+      // 1. CENTER POSITIONING LOGIC
+      // We use 'initial' to set the transform via JS so Framer knows about it
+      // initial={{ x: "-25%", y: 0 }} 
+      // style={{ x: "-30%" }} // Ensures it stays centered
+
       className={cn(
-        "absolute top-6 right-6 z-[50]", // Floating position [46]
-        "flex flex-col items-center gap-3 p-2", // Vertical stack [72]
+        "absolute bottom-8 left-1/5 z-50", // Floating position [46]
+        // "-translate-x-1/2",
+        "flex flex-row items-center gap-3 p-3", // Vertical stack [72]
         "bg-white/90 backdrop-blur-sm border rounded-2xl shadow-2xl",
         // "w-14",
-        "max-h-[85vh] overflow-y-auto",
+        "max-w-[90vw] overflow-x-auto overflow-y-hidden",
         // --- HIDE SCROLLBAR LOGIC ---
         "ms-overflow-style-none",           // IE and Edge [5]
         "[scrollbar-width:none]",           // Firefox [12]
         "[&::-webkit-scrollbar]:hidden",     // Chrome, Safari, and Opera [44]
         "scrollbar-none",
-        "animate-in fade-in slide-in-from-right-4 duration-300"
+        "animate-in fade-in slide-in-from-bottom-8 duration-300"
       )}
     >
 
@@ -282,52 +290,73 @@ const currentFill = selectedObject?.fill as string;
         onPointerDown={(e) => dragControls.start(e)} // Trigger drag [1]
         className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-100 rounded-md transition-colors"
       >
-        <GripVertical className="h-4 w-4 text-slate-400" />
+        <GripHorizontal className="h-4 w-4 text-slate-400" />
       </div>
 
-      <Separator orientation="horizontal" className="w-8" />
+      <Separator orientation="vertical" className="h-8" />
 
-      {/* Border tool */}
-      <BorderSettings 
-        selectedObject={selectedObject}
-        updateStrokeWidth={updateStrokeWidth}
-        updateStrokeColor={updateStrokeColor}
-        updateStrokeStyle={updateStrokeStyle}
-        updateStrokeOpacity={updateStrokeOpacity}
-        updateCornerRadius={updateCornerRadius}
-        resetBorder={resetBorder}
-      />
-      <Separator orientation="vertical" />
       
+      {/* -----------------------
+          SECTION 1: COLORS 
+      ------------------------- */}
+      
+    <div className="flex items-center gap-2 shrink-0">
       {/* Color Picker */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-full border-2 border-slate-100 p-0.5 hover:scale-105 transition-transform">
             <div 
-              className="w-4 h-4 rounded-full border" 
+              className="w-full h-full rounded-full shadow-sm" 
               style={{ backgroundColor: selectedObject.fill as string }} 
             />
             Color
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-40 p-2">
-          <div className="grid grid-cols-4 gap-1">
-            {PRESET_COLORS.map((c) => (
-              <button
-                key={c}
-                className={cn(
-                  "w-5 h-5 rounded-full border border-slate-200 transition hover:scale-110",
-                  currentFill === c && "ring-2 ring-primary ring-offset-1"
-                )}
-                style={{ backgroundColor: c }}
-                onClick={() => changeColor(c)}
-              />
-            ))}
+        <PopoverContent className="w-64 p-3" side="top" sideOffset={15}>
+          <div className="space-y-3">
+              <p className="text-[10px] font-bold uppercase text-slate-500">Fill Color</p>
+              <div className="flex flex-wrap gap-2">
+                {PRESET_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    className={cn(
+                      "w-5 h-5 rounded-full border border-slate-200 transition hover:scale-110",
+                      currentFill === c && "ring-2 ring-primary ring-offset-1"
+                    )}
+                    style={{ backgroundColor: c }}
+                    onClick={() => changeColor(c)}
+                  />
+                ))}
+                {/* Custom */}
+                <div className="relative w-6 h-6 rounded-full overflow-hidden border cursor-pointer">
+                   
+                  <input 
+                    type="color" 
+                    value={currentFill} 
+                    onChange={(e) => changeColor(e.target.value)}
+                    className="w-full h-10 rounded cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Eyedropper inside popover to save toolbar space */}
+              {isDropperSupported && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleEyedropper}
+                  className="w-full gap-2"
+                  title="Pick color from screen"
+                >
+                  <Pipette className="h-4 w-4" />Pick from Screen
+                </Button>
+              )}
+
           </div>
         </PopoverContent>
       </Popover>
 
-       {/* Main Color Popover (For custom colors) */}
+       {/* Main Color Popover (For custom colors)
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border ml-1">
@@ -345,11 +374,11 @@ const currentFill = selectedObject?.fill as string;
                 className="w-full h-10 rounded cursor-pointer"
               />
           </PopoverContent>
-        </Popover>
+        </Popover> */}
 
         {/* --- RECENT COLORS BOX --- */}
-        {recentColors.length > 0 && (
-          <div className="flex flex-col items-center gap-2 w-full">
+        {/* {recentColors.length > 0 && (
+          <div className="flex items-center gap-1 bg-slate-100/50 p-1 rounded-full">
             <Separator orientation="horizontal" className="w-8" />
             
             <div className="flex flex-col items-center p-2 bg-slate-50/80 rounded-xl border border-slate-100 shadow-inner w-full">
@@ -360,7 +389,7 @@ const currentFill = selectedObject?.fill as string;
                 </span> 
               </div>
 
-              {/* 2-Column Grid for compact storage */}
+              {/* 2-Column Grid for compact storage 
               <div className="grid grid-cols-4 gap-1.5">
                 {recentColors.slice(0, 8).map((color: string) => (
                   <button
@@ -374,21 +403,44 @@ const currentFill = selectedObject?.fill as string;
               </div>
             </div>
           </div>
-        )}
-      
-      {isDropperSupported && (
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={handleEyedropper}
-          className="h-8 w-8 rounded-full border border-dashed hover:bg-slate-50"
-          title="Pick color from screen"
-        >
-          <Pipette className="h-4 w-4 text-slate-600" />
-        </Button>
-      )}
+        )} */}
 
-      <Separator orientation="horizontal" className="w-8" />
+        {/* Recent Colors (Mini Strip) */}
+        {recentColors.length > 0 && (
+          <div className="flex items-center gap-1 bg-slate-100/50 p-1 rounded-full">
+             {recentColors.slice(0, 3).map((color: string) => (
+                <button
+                  key={color}
+                  onClick={() => changeColor(color)}
+                  className="w-4 h-4 rounded-full border border-white shadow-sm"
+                  style={{ backgroundColor: color }}
+                />
+             ))}
+          </div>
+        )}
+      </div>
+      
+      <Separator orientation="vertical" className="h-8" />
+
+      {/* -----------------------
+          SECTION 2: PROPERTIES 
+      ------------------------- */}
+      
+      {/* Border & Shadow */}
+      {/* Assuming these components render buttons. If they render panels, wrap them in Popovers */}
+      {/* <BorderSettings ... />  */}
+
+    {/* Border tool */}
+      <BorderSettings 
+        selectedObject={selectedObject}
+        updateStrokeWidth={updateStrokeWidth}
+        updateStrokeColor={updateStrokeColor}
+        updateStrokeStyle={updateStrokeStyle}
+        updateStrokeOpacity={updateStrokeOpacity}
+        updateCornerRadius={updateCornerRadius}
+        resetBorder={resetBorder}
+      />
+
       {/* Shadow tool */}
       <ShadowTool
         selectedObject={selectedObject}
@@ -396,40 +448,23 @@ const currentFill = selectedObject?.fill as string;
         applyShadow={applyShadow}
       />
 
-      {isText && (
-        <>
-          <TextToolbar 
-            selectedObject={selectedObject as fabric.IText} 
-            canvas={canvas} 
-          />
-          <Button variant="outline" size="sm" onClick={() => {
-            const current = selectedObject.fontWeight;
-            selectedObject.set("fontWeight", current === "bold" ? "normal" : "bold");
-            canvas.renderAll();
-          }}>
-            <Type className="h-4 w-4" />
-            {selectedObject.fontWeight === "bold" ? "Bold" : "Normal"}
-          </Button>
-        </>
-      )}
+      <Separator orientation="vertical" className="h-8" />
 
-      {/* <Button variant="ghost" size="icon" onClick={deleteObject} className="text-destructive">
-        <Trash2 className="h-4 w-4" />
-      </Button> */}
-    
-    {/* Opacity Slider */}
+      {/* Example of Opacity Popover */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
-            <span className="text-[10px] font-bold">{Math.round(selectedObject.opacity * 100)}%</span>
-            Opacity
+          <Button variant="ghost" size="sm" className="h-9 px-2 gap-2 rounded-lg text-slate-600">
+             <div className="flex flex-col items-center leading-none">
+                <span className="text-[10px] font-bold">{Math.round(selectedObject.opacity * 100)}%</span>
+                <span className="text-[8px] uppercase text-slate-400">Opacity</span>
+             </div>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-60 p-4">
-          <div className="space-y-4">
-            <div className="flex justify-between text-xs font-medium">
+        <PopoverContent className="w-48 p-3" side="top" sideOffset={15}>
+          <div className="space-y-3">
+            <div className="flex justify-between text-xs">
               <span>Transparency</span>
-              <span>{Math.round(selectedObject.opacity * 100)}</span>
+              <span>{Math.round(selectedObject.opacity * 100)}%</span>
             </div>
             <Slider 
               defaultValue={[selectedObject.opacity * 100]} 
@@ -442,32 +477,275 @@ const currentFill = selectedObject?.fill as string;
       </Popover>
 
       {/* 2. Gradient Color Picker */}
-      {/* <Popover>
-        <PopoverTrigger asChild>
-          <Button size="sm" variant="outline"><PaintBucket className="h-4 w-4 mr-2" /> Gradient</Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-48 p-3 space-y-3">
-          <p className="text-[10px] font-bold uppercase">Linear Gradient</p>
-          <div className="flex gap-2">
-            <input type="color" onChange={(e) => applyGradient(e.target.value, "#ffffff")} />
-            <input type="color" onChange={(e) => applyGradient("#000000", e.target.value)} />
-          </div>
-        {/* </ScrollArea> 
-        </PopoverContent>
-      </Popover> */}
+      
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="h-9 rounded-xl gap-2 border-2">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-slate-600 hover:bg-indigo-50 hover:text-indigo-600">
             <PaintBucket className="h-4 w-4" /> Gradient
           </Button>
         </PopoverTrigger>
         
         {/* Pass the applyGradient function to the settings component */}
-        <GradientSettings onApply={applyGradient} />
+        <PopoverContent side="top" sideOffset={15}>
+          <GradientSettings onApply={applyGradient} />
+        </PopoverContent>
       </Popover>
 
-      {/* MIRROR / FLIP TOOL */}
+       {/* -----------------------
+          SECTION 3: TOOLS 
+      ------------------------- */}
+
+      {isText ? (
+        // Text specific Tools
+        <div className="flex items-center gap-2 shrink-0">
+          <TextToolbar 
+            selectedObject={selectedObject as fabric.IText} 
+            canvas={canvas} 
+          />
+          <Button 
+            variant={selectedObject.fontWeight === "bold" ? "default" : "ghost"} 
+            size="icon" 
+            className="h-9 w-9 rounded-xl"
+            onClick={() => {
+              const current = selectedObject.fontWeight;
+              selectedObject.set("fontWeight", current === "bold" ? "normal" : "bold");
+              canvas.renderAll();
+            }}
+          >
+            <Type className="h-4 w-4" />
+            {/* {selectedObject.fontWeight === "bold" ? "Bold" : "Normal"} */}
+          </Button>
+          <Separator orientation="vertical" className="h-6" />
+        </div>
+      ): (
+        // Image/Shape Tools
+         <div className="flex items-center gap-1 shrink-0">
+            {/* Adjustments */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 gap-2 text-slate-600">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span className="hidden sm:inline">Adjust</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-4 space-y-4" side="top" sideOffset={15}>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Brightness</label>
+                  <span className="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded border text-primary">         
+                      {brightness > 0 ? `+${brightness * 100}` : brightness * 100}
+                    </span>
+                  </div>
+                  {/* 2. THE CENTERED SLIDER CONFIG */}
+                  <div className="relative pt-2">
+                    {/* Optional: Visual Center Notch (Canva Style) */}
+                    <div className="absolute left-1/2 top-0 h-1.5 w-0.5 bg-slate-300 -translate-x-1/2" />
+
+                      <Slider 
+                        key={`bright-${selectedObject.id}`}
+                        defaultValue={[brightness]} 
+                        min={-100} 
+                        max={100} 
+                        step={1}
+                        className="cursor-pointer"
+                        onValueChange={([v]) => applyAdjustment("brightness", v)} 
+                      />
+                    </div>
+                    <div className="flex justify-between text-[9px] text-muted-foreground px-1">
+                      <span>-100</span>
+                      <span>0</span>
+                      <span>100</span>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Blur</label>
+                    <span className="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded border text-primary">         
+                        {
+                          (() => {
+                            // 1. Safely access the contrast value
+                            const blurVal = (selectedObject?.filters?.[FILTER_INDEXES.blur] as any)?.blur;
+                            
+                            // 2. If it's not a number (undefined/null), return 0
+                            const displayValue = Math.round((blurVal || 0) * 100);
+                            
+                            // 3. Format with a '+' for positive values for a Pro look
+                            return displayValue > 0 ? `+${displayValue}` : displayValue;
+                          })()
+                        }
+                    </span>
+                  </div>
+                  <Slider 
+                    defaultValue={[0]} 
+                    min={0} 
+                    max={100} 
+                    step={5}
+                    onValueChange={([v]) => applyAdjustment("blur", v)} 
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-bold uppercase text-slate-500">Contrast</label>
+                  <span className="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded border text-primary">         
+                      {
+                        (() => {
+                          // 1. Safely access the contrast value
+                          const contrastVal = (selectedObject?.filters?.[FILTER_INDEXES.contrast] as any)?.contrast;
+                          
+                          // 2. If it's not a number (undefined/null), return 0
+                          const displayValue = Math.round((contrastVal || 0) * 100);
+                          
+                          // 3. Format with a '+' for positive values for a Pro look
+                          return displayValue > 0 ? `+${displayValue}` : displayValue;
+                        })()
+                      }
+                    </span>
+                  </div>
+                  <Slider 
+                    defaultValue={[0]} 
+                    min={0} 
+                    max={100} 
+                    step={10}
+                    onValueChange={([v]) => applyAdjustment("contrast", v)} 
+                  />
+                </div>
+              </PopoverContent>
+            </Popover>
+
+             {/* Crop */}
+            <Button 
+              variant={isCropMode ? "secondary" : "ghost"} 
+              size="sm" 
+              className={cn("h-8 gap-2", isCropMode && "bg-indigo-100 text-indigo-700")}
+              onClick={isCropMode ? applyCrop : enterCropMode}
+            >
+              {isCropMode ? <Check className="h-4 w-4" /> : <Crop className="h-4 w-4" />}
+              <span className="hidden sm:inline">{isCropMode ? "Apply" : "Crop"}</span>
+            </Button>
+          </div>
+      )}
+
+      <Separator orientation="vertical" className="h-8 shrink-0" />
+
+       {/* -----------------------
+          SECTION 4: ACTIONS 
+      ------------------------- */}
+      
+      {/* Position / Layers */}
       <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Layers className="h-4 w-4 text-slate-600" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="center" className="w-40">
+           <DropdownMenuItem onClick={bringToFront}><Maximize className="mr-2 h-3 w-3"/> Front</DropdownMenuItem>
+           <DropdownMenuItem onClick={bringForward}><ArrowUp className="mr-2 h-3 w-3"/> Forward</DropdownMenuItem>
+           <DropdownMenuItem onClick={sendBackward}><ArrowDown className="mr-2 h-3 w-3"/> Backward</DropdownMenuItem>
+           <DropdownMenuItem onClick={sendToBack}><Minimize className="mr-2 h-3 w-3"/> Back</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Grouping */}
+      {(isMultiSelect || isGroup) && (
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-8 w-8"
+          onClick={isGroup ? ungroupObjects : groupObjects}
+        >
+          {isGroup ? <Ungroup className="h-4 w-4" /> : <Group className="h-4 w-4" />}
+        </Button>
+      )}
+
+      {/* Flip */}
+      <DropdownMenu>
+         <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+               <FlipHorizontal className="h-4 w-4 text-slate-600" />
+            </Button>
+         </DropdownMenuTrigger>
+         <DropdownMenuContent side="top">
+            <DropdownMenuItem onClick={flipHorizontal}>Flip Horizontal</DropdownMenuItem>
+            <DropdownMenuItem onClick={flipVertical}>Flip Vertical</DropdownMenuItem>
+         </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Duplicate */}
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={duplicateObject}>
+         <Copy className="h-4 w-4 text-slate-600" />
+      </Button>
+
+      <Separator orientation="vertical" className="h-8 shrink-0" />
+
+       {/* -----------------------
+          SECTION 5: SYSTEM 
+      ------------------------- */}
+      
+      {/* Lock */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={cn("h-8 w-8", isLocked && "text-amber-500 hover:text-amber-600 hover:bg-amber-50")}
+            onClick={toggleLock}
+          >
+            {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4 text-slate-400" />}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent><p>{isLocked ? "Unlock" : "Lock"} Selection</p></TooltipContent>
+      </Tooltip>
+
+      {/* Delete (Far Right) */}
+      <Button 
+         variant="ghost" 
+         size="icon" 
+         className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+         onClick={() => {
+            if(canvas) {
+              const active = canvas.getActiveObjects();
+              canvas.remove(...active);
+              canvas.discardActiveObject();
+              canvas.requestRenderAll();
+            }
+         }}
+      >
+         <Trash2 className="h-4 w-4" />
+      </Button>
+
+    {/* Extras */}
+    
+    {/* Opacity Slider */}
+      {/* <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="sm" className="gap-2 h-9 rounded-xl text-slate-600">
+            <span className="text-[10px] font-bold">{Math.round(selectedObject.opacity * 100)}%</span>
+            Opacity
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-60 p-4" side="top" sideOffset={15}>
+          <div className="space-y-4">
+            <div className="flex justify-between text-xs font-medium">
+              <span>Opacity</span>
+              <span>{Math.round(selectedObject.opacity * 100)}%</span>
+            </div>
+            <Slider 
+              defaultValue={[selectedObject.opacity * 100]} 
+              max={100} 
+              step={1} 
+              onValueChange={handleOpacityChange} 
+            />
+          </div>
+        </PopoverContent>
+      </Popover> */}
+
+      
+
+      {/* MIRROR / FLIP TOOL */}
+      {/* <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2 h-8">
             <FlipHorizontal className="h-4 w-4" />
@@ -483,33 +761,33 @@ const currentFill = selectedObject?.fill as string;
             <FlipVertical className="h-4 w-4" /> Flip Vertical
           </DropdownMenuItem>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu> */}
 
       {/* Group Button: Show when 2+ items are selected */}
-      {isMultiSelect && (
+      {/* {isMultiSelect && (
         <Button variant="outline" size="sm" className="gap-2 h-8" onClick={groupObjects}>
           <Group className="h-4 w-4" />
           Group
         </Button>
-      )}
+      )} */}
 
       {/* UNGROUP BUTTON: Show when a group is selected */}
-      {isGroup && (
+      {/* {isGroup && (
         <Button variant="outline" size="sm" className="gap-2 h-8" onClick={ungroupObjects}>
           <Ungroup className="h-4 w-4" />
           Ungroup
         </Button>
-      )}
+      )} */}
 
       {/* Duplicate Button */}
-      <Button variant="outline" size="sm" onClick={duplicateObject} className="gap-2">
+      {/* <Button variant="outline" size="sm" onClick={duplicateObject} className="gap-2">
         <Copy className="h-4 w-4" />
         Duplicate
-      </Button>
+      </Button> */}
 
 
     {/* Layering Menu */}
-      <DropdownMenu>
+      {/* <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2">
             <Layers className="h-4 w-4" />
@@ -530,16 +808,16 @@ const currentFill = selectedObject?.fill as string;
             <Minimize className="h-4 w-4" /> Send to Back
           </DropdownMenuItem>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu> */}
 
       {/* Selection & Crop */}
-      <div className="flex items-center gap-2 px-2">
+      {/* <div className="flex items-center gap-2 px-2">
         {!isCropMode ? (
           <Button onClick={enterCropMode} variant="outline" className="w-full">
             <Crop className="w-4 h-4" /> Crop Image
           </Button>
         ) : (
-          /* The UI block you requested */
+          /* The UI block you requested 
           <div className="flex flex-col gap-2 p-4 bg-slate-50 rounded-lg border border-dashed border-primary/50 animate-in fade-in zoom-in">
             <p className="text-[10px] font-bold text-primary uppercase tracking-wider">
               Crop Mode Active
@@ -557,100 +835,10 @@ const currentFill = selectedObject?.fill as string;
           </div>
         )}
         </div>
-        
+         */}
 
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
-            <SlidersHorizontal className="h-4 w-4" /> Adjust
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-60 p-4 space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-            <label className="text-[10px] font-bold uppercase text-slate-500">Brightness</label>
-            <span className="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded border text-primary">         
-                {brightness > 0 ? `+${brightness * 100}` : brightness * 100}
-              </span>
-            </div>
-            {/* 2. THE CENTERED SLIDER CONFIG */}
-            <div className="relative pt-2">
-              {/* Optional: Visual Center Notch (Canva Style) */}
-              <div className="absolute left-1/2 top-0 h-1.5 w-0.5 bg-slate-300 -translate-x-1/2" />
-
-                <Slider 
-                  key={`bright-${selectedObject.id}`}
-                  defaultValue={[brightness]} 
-                  min={-100} 
-                  max={100} 
-                  step={1}
-                  className="cursor-pointer"
-                  onValueChange={([v]) => applyAdjustment("brightness", v)} 
-                />
-              </div>
-              <div className="flex justify-between text-[9px] text-muted-foreground px-1">
-                <span>-100</span>
-                <span>0</span>
-                <span>100</span>
-              </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-            <label className="text-[10px] font-bold uppercase text-slate-500">Blur</label>
-              <span className="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded border text-primary">         
-                  {
-                    (() => {
-                      // 1. Safely access the contrast value
-                      const blurVal = (selectedObject?.filters?.[FILTER_INDEXES.blur] as any)?.blur;
-                      
-                      // 2. If it's not a number (undefined/null), return 0
-                      const displayValue = Math.round((blurVal || 0) * 100);
-                      
-                      // 3. Format with a '+' for positive values for a Pro look
-                      return displayValue > 0 ? `+${displayValue}` : displayValue;
-                    })()
-                  }
-              </span>
-            </div>
-            <Slider 
-              defaultValue={[0]} 
-              min={0} 
-              max={100} 
-              step={5}
-              onValueChange={([v]) => applyAdjustment("blur", v)} 
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-            <label className="text-[10px] font-bold uppercase text-slate-500">Contrast</label>
-            <span className="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded border text-primary">         
-                {
-                  (() => {
-                    // 1. Safely access the contrast value
-                    const contrastVal = (selectedObject?.filters?.[FILTER_INDEXES.contrast] as any)?.contrast;
-                    
-                    // 2. If it's not a number (undefined/null), return 0
-                    const displayValue = Math.round((contrastVal || 0) * 100);
-                    
-                    // 3. Format with a '+' for positive values for a Pro look
-                    return displayValue > 0 ? `+${displayValue}` : displayValue;
-                  })()
-                }
-              </span>
-            </div>
-            <Slider 
-              defaultValue={[0]} 
-              min={0} 
-              max={100} 
-              step={10}
-              onValueChange={([v]) => applyAdjustment("contrast", v)} 
-            />
-          </div>
-        </PopoverContent>
-      </Popover> 
-
-      <Tooltip>
+        {/* Lock */}
+      {/* <Tooltip>
         <TooltipTrigger asChild>
           <Button
             variant={isLocked ? "default" : "outline"}
@@ -668,9 +856,9 @@ const currentFill = selectedObject?.fill as string;
         <TooltipContent>
           <p className="text-xs">{isLocked ? "Unlock Layer" : "Lock Layer"}</p>
         </TooltipContent>
-      </Tooltip>     
+      </Tooltip>      */}
 
-      <Button 
+      {/* <Button 
         variant="ghost" 
         size="icon" 
         onClick={() => {
@@ -681,7 +869,7 @@ const currentFill = selectedObject?.fill as string;
         className="text-destructive hover:bg-destructive/10"
       >
         <Trash2 className="h-4 w-4" />
-      </Button>
+      </Button> */}
     </motion.div>
   );
 }

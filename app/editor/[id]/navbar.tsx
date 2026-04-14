@@ -5,7 +5,7 @@ import { Download, CloudCheck, ChevronLeft, Undo2, Redo2 } from "lucide-react";
 import Link from "next/link";
 import { fabric } from "fabric";
 import { SelectionToolbar } from "@/components/editor/selection-toolbar";
-import { TextToolbar } from "@/components/editor/text-toolbar";
+import { TextToolbar } from "@/components/editor/text-toolbar_old.baktsx";
 import { ResizeModal } from "@/components/editor/resize-modal";
 import { ResizeTool } from "@/components/editor/resize-tool";
 import { ExportTool } from "@/components/editor/export-tool";
