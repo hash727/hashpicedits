@@ -1,19 +1,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Download, CloudCheck, ChevronLeft, Undo2, Redo2 } from "lucide-react";
+import { ChevronLeft, Undo2, Redo2 } from "lucide-react";
 import Link from "next/link";
 import { fabric } from "fabric";
-import { SelectionToolbar } from "@/components/editor/selection-toolbar";
-import { TextToolbar } from "@/components/editor/text-toolbar_old.baktsx";
 import { ResizeModal } from "@/components/editor/resize-modal";
 import { ResizeTool } from "@/components/editor/resize-tool";
 import { ExportTool } from "@/components/editor/export-tool";
 import { SavingStatus } from "./saving-status";
 import { EditableTitle } from "@/components/editor/editable-title";
-import { getProjectName } from "@/app/actions/projects";
-import { createTemplateFromProject } from "@/app/actions/templates";
-import { toast } from "sonner";
 import { SaveTemplateDialog } from "@/components/templates/save-template-dialog";
 
 
@@ -33,8 +28,7 @@ interface NavbarProps {
 export function EditorNavbar({ 
   projectId, 
   projectName,
-  canvas, 
-  selectedObject, 
+  canvas,  
   canUndo, 
   canRedo, 
   undo, 
